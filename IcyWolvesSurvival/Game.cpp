@@ -1,211 +1,159 @@
 #include "Game.h"
 
-Connection::Types Game::choose_connection_type() {
+char Game::choose_connection_type() {
 	char choice = 0;
 	while (choice == 0) {
 		std::cout << "Choose connection [C - client, S - server]\n";
 
 		std::cin >> choice;
 		if (choice == 'C' || choice == 'c') {
-			return Connection::Types::client;
+			return 'c';
 		}
 		else if (choice == 'S' || choice == 's') {
-			return Connection::Types::server;
+			return 's';
 		}
 		else
 			choice = 0;
 	}
-	return Connection::Types::undefined;
+	return 0;
 }
 
 void Game::join_a_room() {
 	// gett answer from server that you can play;
 	unsigned short port;
-	std::cout << "Server address: ";
-	std::cin >> serverIP;
-	std::cout << "Server port: ";
+	std::cout << "Server address: \n";
+	serverIP = sf::IpAddress::getLocalAddress().toString();
+	std::cout << "Server port: \n";
 	std::cin >> port;
+	port += 54000;
 	connection->bind(port);
 	connection->startListening();
-	char buffer[8] = "jo";
-	connection->socket.send(buffer, 3, serverIP, port);
-
-	bool waiting_for_confirmation = true;
-	while (waiting_for_confirmation) {
-		if (connection->messages.empty() == false) {
-			deal_with_message(connection->messages.pop());
-		}
-	}
+	char buffer[8] = "join";
+	connection->socket.send(buffer, 3, serverIP, 54000);
 }
 
 void Game::create_a_room() {
-	board->players.front()->address = connection->address.toString();
-	board->players.front()->x = rand() % board->width;
-	board->players.front()->y = rand() % board->height;
-	board->players.front()->id = 'A';
-	std::cout << "IP = " << connection->address.toString() << '\n'
+	serverIP = sf::IpAddress::getLocalAddress().toString();
+	std::cout << "IP = " << connection->address << '\n'
 		<< "Port = 54000\n";
 	std::cin.get();
 	std::cin.get();
+	board->players[0] = new Player(rand() % board->width, rand() % board->height, 'A', board, true);
+	board->players[0]->port = 54000;
+	board->players[0]->address = connection->address.c_str();
+	board->player_id = 'A';
+	board->player_index = 0;
+	board->player_count = 1;
+	board->all_data[0] = 'A';
+	board->players[0]->buffer[0] = 'A';
+	board->players[0]->buffer[1] = board->players[0]->x;
+	board->players[0]->buffer[2] = board->players[0]->y;
+	board->players[0]->buffer[3] = board->players[0]->hp;
+	board->players[0]->buffer[4] = '1';
+	connection->id = 'A';
+	((Server*)connection)->next_id = 'B';
 	connection->bind(54000);
+	((unsigned short*)&board->all_data[6])[0] = connection->port; /// check this
+	board->players[0]->buffer[6] = ((char*)&connection->port)[0];
+	board->players[0]->buffer[7] = ((char*)&connection->port)[1];
+	strcpy_s(&board->players[0]->buffer[8], 17, connection->address.c_str());
 	connection->startListening();
+	gameStarted = true;
 }
 
-void Game::add_player(const char* address, int x, int y, char id) {
-	// later board will specify the starting position of 
-	if (id == 0) {
-		x = std::rand() % board->width;
-		y = std::rand() % board->height;
-		if (board->players.empty())
-			id = 'A';
-		else
-			id = board->players.back()->id + 1; // players are sorted by id, last players id is max id
-	}
-	board->players.push_back(new Player(x, y, id, board, address));
+void Game::add_player(int x, int y, char id, int i) {
+	board->players[i] = new Player(x, y, id, board, true);
 }
 
 void Game::remove_player(char id) {
-	for (Player* p : board->players) {
-		if (p->id == id) {
-			board->players.remove(p);
-			break;
+
+}
+
+void Game::process_network_data() {
+	// max 10 players
+	for (int i = 0; i < 10; i++) {
+		if (board->all_data[i * 32] == 0)
+			return;
+		if (board->players[i] == nullptr) {
+			if ((unsigned short)board->all_data[i * 32 + 6] == connection->port && 
+				strcmp(&board->all_data[i * 32 + 8], connection->address.c_str()) == 0) {
+				add_player(rand() % board->width, rand() % board->height, board->all_data[i * 32], i);
+				board->player_id = board->all_data[i * 32];
+				board->player_index = i;
+				board->players[board->player_index]->port = *(unsigned short*)&board->all_data[i * 32 + 6];
+				board->players[board->player_index]->address = &board->all_data[i * 32 + 8];
+				gameStarted = true;
+				board->player_count++;
+			}
+			else if (board->all_data[i * 32 + 4] == '1') {
+				add_player(board->all_data[i * 32 + 1], board->all_data[i * 32 + 2], board->all_data[i * 32], i);
+				board->player_count++;
+			}
+		}
+		else if(i != board->player_index) {
+			board->players[i]->x = board->all_data[i * 32 + 1];
+			board->players[i]->y = board->all_data[i * 32 + 2];
+			board->players[i]->hp = board->all_data[i * 32 + 3];
 		}
 	}
 }
 
-void Game::deal_with_message(struct message msg) {
-	std::cout << msg.address << ": [" << msg.buffer << "]\n";
-	// if someone asks to join
-	if (strcmp(msg.buffer, "jo") == 0) {
-		add_player(msg.address);		// add player and remember his ip address
-		// use msg buffer to send confirmation - player position and id.
-		msg.buffer[0] = 'U';		// specifies if it's the receiver player (U) or enemy player (E)
-		msg.buffer[1] = board->players.back()->x;
-		msg.buffer[2] = board->players.back()->y;
-		msg.buffer[3] = board->players.back()->id;
-		msg.buffer[4] = 0;
-		connection->socket.send(msg.buffer, 5, msg.address, connection->port);
-
-		msg.buffer[0] = 'E';
-		for (Player* p : board->players) {
-			if (p == board->players.back()) break;
-			msg.buffer[1] = p->x;
-			msg.buffer[2] = p->y;
-			msg.buffer[3] = p->id;
-			connection->socket.send(msg.buffer, 5, msg.address, connection->port);
-		}
+void Game::network_game() {
+	while (!gameStarted) {
+		process_network_data();
+		std::this_thread::sleep_for(100ms);
 	}
-	// if someone quits
-	else if (strcmp(msg.buffer, "qu") == 0) {
-		remove_player(msg.buffer[3]);
-	}
-	else if (msg.buffer[0] == 'U') {
-		board->players.front()->address = connection->address.toString();
-		board->players.front()->x = msg.buffer[1];
-		board->players.front()->y = msg.buffer[2];
-		board->players.front()->id = msg.buffer[3];
-	}
-	else if (msg.buffer[0] == 'E') {
-		bool isHere = false;
-		for (Player* p : board->players) {
-			if (p->id == msg.buffer[3]) {
-				p->x = msg.buffer[1];
-				p->y = msg.buffer[2];
-				isHere = true;
-			}
+	std::cout << "Game Started:\n";
+	board->players[board->player_index]->buffer[0] = board->players[board->player_index]->id;
+	board->players[board->player_index]->buffer[4] = '1';
+	bool game_over = false;
+	while (game_over == false) {
+		int time_now = clock();
+		process_network_data();
+		board->players[board->player_index]->move();
+		if (time_now - board->last_print_time > board->print_delay) {
+			//board->print();
+			board->last_print_time = time_now;
 		}
-		if (isHere == false) {
-			add_player(msg.address, msg.buffer[1], msg.buffer[2], msg.buffer[3]);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+			game_over = true;
+			break;
 		}
-		if (connection->type == Connection::Types::server) {
-			for (Player* p : board->players) {
-				if (p->id != msg.buffer[3] && p->id != board->players.front()->id) {
-					connection->socket.send(msg.buffer, 5, p->address, connection->port);
+		board->players[board->player_index]->update_player();
+		if (connection->isServer()) {
+			connection->save_message(board->players[board->player_index]->buffer, 0, "");
+			for (int i=1; i<board->player_count; i++)
+				{
+					//connection->socket.send(buffer, 5, p->address, connection->port);
+					connection->socket.send(board->all_data, 5, board->players[i]->address, board->players[i]->port);
 				}
-			}
 		}
-	}
-}
-
-void Game::server_game() {
-	char buffer[64];
-	bool game_over = false;
-	int board_print_delay = 100;
-	int board_last_print_time = 0;
-	while (game_over == false) {
-		int time_now = clock();
-		while (connection->messages.empty() == false) {
-			deal_with_message(connection->messages.pop());
+		else {
+			connection->socket.send(board->players[board->player_index]->buffer, 32, serverIP, 54000);
 		}
-		board->players.front()->move();
-		if (time_now - board_last_print_time > board_print_delay) {
-			board->print();
-			board_last_print_time = time_now;
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
-			game_over = true;
-			break;
-		}
-
-		buffer[0] = 'E';
-		buffer[1] = board->players.front()->x;
-		buffer[2] = board->players.front()->y;
-		buffer[3] = board->players.front()->id;
-		buffer[4] = 0;
-		for (Player* p : board->players)
-			if (p->id != board->players.front()->id)
-				connection->socket.send(buffer, 5, p->address, connection->port);
-	}
-	connection->stopListening();
-}
-
-void Game::client_game() {
-	char buffer[64];
-	bool game_over = false;
-	int board_print_delay = 100;
-	int board_last_print_time = 0;
-	while (game_over == false) {
-		int time_now = clock();
-		while (connection->messages.empty() == false) {
-			deal_with_message(connection->messages.pop());
-		}
-		board->players.front()->move();
-		if (time_now - board_last_print_time > board_print_delay) {
-			board->print();
-			board_last_print_time = time_now;
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
-			game_over = true;
-			break;
-		}
-
-		buffer[0] = 'E';
-		buffer[1] = board->players.front()->x;
-		buffer[2] = board->players.front()->y;
-		buffer[3] = board->players.front()->id;
-		buffer[4] = 0;
-		connection->socket.send(buffer, 5, serverIP, connection->port);
+		std::this_thread::sleep_for(300ms);
+		std::cin.get();
 	}
 	connection->stopListening();
 }
 
 void Game::start()
 {
+	srand(time(NULL));
+	std::cout << sf::IpAddress::getLocalAddress() << '\n';
 	board = new Board(10, 10);								// board is 10x10
-	board->players.push_back(new Player(0, 0, 0, board, ""));
-	connection = new Connection(choose_connection_type());	// after successfully joining a room, you can
-
-	if (connection->type == Connection::Types::client) {
+	char type = choose_connection_type();
+	if (type == 'c') {
+		connection = new Client();
+		board->all_data = connection->all_data;
 		join_a_room();
-		client_game();
 	}
-	else if (connection->type == Connection::Types::server) {
+	else if (type == 's') {
+		connection = new Server();
+		board->all_data = connection->all_data;
 		create_a_room();
-		server_game();
 	}
-	else {
-		// singleplayer later;
-		return;
-	}
+	else return;
+	network_game();
 	return;
 }

@@ -26,9 +26,3 @@ void Player::move() {
 		last_move_time = time_now;
 	}
 }
-
-void Player::update_player() {
-	board->players[board->player_index]->buffer[1] = board->players[board->player_index]->x;
-	board->players[board->player_index]->buffer[2] = board->players[board->player_index]->y;
-	board->players[board->player_index]->buffer[3] = board->players[board->player_index]->hp;
-}

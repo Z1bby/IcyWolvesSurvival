@@ -1,10 +1,12 @@
 #pragma once
 
+#include <string>
+
 struct message {
 	char buffer[64];
-	const char *address;
+	std::string address;
 	unsigned short port;
-	message(const char buf[], const char* a, unsigned short p) {
+	message(const char buf[], std::string a, unsigned short p) {
 		for (int i = 0; i < 64; i++) {
 			buffer[i] = buf[i];
 			if (buf[i] == 0)

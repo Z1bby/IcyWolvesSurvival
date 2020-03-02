@@ -25,7 +25,3 @@ void Board::print() {
 	for (int i = 0; i < width + 2; i++)
 		std::cout << '=';
 }
-
-void Board::update_players() {
-	//...
-}

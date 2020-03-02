@@ -1,56 +1,85 @@
 #pragma once
 #include "SFML\Network.hpp"
 
-#include "msgHeap.h"
 #include "Player.h"
 
 #include <thread>
-#include <map>
+#include <iostream>
 #include <mutex>
 #include <list>
 
 using namespace std::chrono_literals;
 
+class Game;
+
+class ConnectionData {
+public:
+	unsigned short port;
+	std::string address;
+	char id;
+	ConnectionData(unsigned short p, std::string a, char i) :
+		port(p), address(a), id(i) {}
+
+};
+
 class Connection {
 public:
 	sf::UdpSocket socket;
 	unsigned short port;
-	sf::IpAddress address;
+	std::string address;
+	char id;
+	char* all_data;
 
-	std::mutex m_mutex;
+	std::mutex* m_mutex;
 	std::thread receiverThread;
-	std::thread senderThread;
 	bool keep_receiving;
 
-	std::vector<Player*> players;
-	std::vector<sf::IpAddress> addresses;
-	static const int MaxPlayers;
-	msgHeap messages;
-	static const int MessageBufferSize;
-	enum Flags { fullArray };
-	enum class Types { client, server, undefined };
-	Types type;
+	virtual bool isServer() = 0;
+	virtual void startListening() = 0;
+	virtual void stopListening() = 0;
+	virtual void save_message(const char* buffer, unsigned short port, std::string address) = 0;
 
-
-	void startListening();
-	void stopListening();
-	void startSending();
-	void stopSending();
-	void receive_message();
-	void send_message(const char* buffer, unsigned short port, const char* address);
-	void save_message(const char* buffer, unsigned short sender_port, const char* sender_ip);
 	void bind(unsigned short p = 0) {
 		port = p;
-		if (socket.bind(port) != sf::Socket::Done) {
+		if (socket.bind(p) != sf::Socket::Done) {
 			//throw exception
+			std::cout << "Couldn't bind socket with port " << p << ". that's bad.\n";
 		}
 	}
-	Connection() : 
-		port(0), type(Types::undefined), keep_receiving(false) {
-		address = sf::IpAddress::getLocalAddress();
+	Connection() : keep_receiving(false) {
+		port = 0;
+		id = 0;
+		address = sf::IpAddress::getLocalAddress().toString();
+
+		all_data = new char[320];
+		for (int i = 0; i < 320; i++)
+			all_data[i] = 0;
+
+		m_mutex = new std::mutex();
 	}
-	Connection(Types ctype) :
-		port(0), type(ctype), keep_receiving(false) {
-		address = sf::IpAddress::getLocalAddress();
+	~Connection() {
+		delete[] all_data;
 	}
+};
+
+class Client : public Connection {
+public:
+	void start_client();
+	void startListening();
+	void stopListening();
+	void save_message(const char* buffer, unsigned short sender_port, std::string sender_ip);
+	bool isServer() { return false; }
+	Client() : Connection() {}
+};
+
+class Server : public Connection {
+public:
+	std::list <ConnectionData> clients;
+	char next_id;
+	void start_server();
+	void startListening();
+	void stopListening();
+	void save_message(const char* buffer, unsigned short sender_port, std::string sender_ip);
+	bool isServer() { return true; }
+	Server() : Connection() { next_id = 0; }
 };

@@ -19,13 +19,13 @@ public:
 	Game() : connection(nullptr), serverIP(""), board(nullptr), gameStarted(false) { }
 	
 	void start();
-	char choose_connection_type();
+	Connection::Types choose_connection_type();
 	void join_a_room();
 	void create_a_room();
-	void add_player(int x, int y, char id, int i);
+	void add_player(std::string address, unsigned short port, int x = -1, int y = -1, char id = 0);
 	void remove_player(char id = 0);
 	void add_board();
-	void process_network_data();
+	void process_message(struct message msg);
 	void network_game();
 	void client_game();
 };

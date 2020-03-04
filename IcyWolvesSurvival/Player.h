@@ -26,7 +26,7 @@ public:
 
 	void update_player();
 
-	Player(char px, char py, char pid, Board* pboard, bool pconnected) {
+	Player(char px, char py, char pid, Board* pboard, unsigned short pport, std::string paddress, bool pconnected) {
 		x = px;
 		y = py;
 		id = pid;
@@ -37,8 +37,8 @@ public:
 		last_move_time = 0;
 		buffer = new char[32];
 		connected = pconnected;
-		port = 0;
-		address = "";
+		port = pport;
+		address = paddress;
 	}
 	~Player() {
 		delete[] buffer;

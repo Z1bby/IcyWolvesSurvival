@@ -22,7 +22,7 @@ public:
 	char choose_connection_type();
 	void join_a_room();
 	void create_a_room();
-	void add_player(int x, int y, char id, int i);
+	void add_player(int x, int y, char id, unsigned short port, std::string address, int i);
 	void remove_player(char id = 0);
 	void add_board();
 	void process_network_data();

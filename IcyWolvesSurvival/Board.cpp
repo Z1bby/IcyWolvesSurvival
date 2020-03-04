@@ -11,6 +11,8 @@ void Board::print() {
 		for (int x = 0; x < width; x++) {
 			bool playerHere = false;
 			for (Player* p : players) {
+				if (p == nullptr)
+					break;
 				if (p->x == x && p->y == y) {
 					std::cout << p->id;
 					playerHere = true;

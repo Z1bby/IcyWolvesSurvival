@@ -40,13 +40,13 @@ void Server::start_server() {
 	unsigned short sender_port;
 	char buffer[32];
 	while (keep_receiving) {
-		std::cout << "Receiving new message...\n";
+		//std::cout << "Receiving new message...\n";
 		if (socket.receive(buffer, 32, package_size, sender_ip, sender_port) != sf::Socket::Done) {
 			//throw exception
-			std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " ERROR\n";
+			//std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " ERROR\n";
 		}
 		else if (package_size > 0) {
-			std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " SUCCESS\n";
+			//std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " SUCCESS\n";
 			save_message(buffer, sender_port, sender_ip.toString());
 		}
 		std::this_thread::sleep_for(100ms);
@@ -58,13 +58,13 @@ void Client::start_client() {
 	sf::IpAddress sender_ip;
 	unsigned short sender_port;
 	while (keep_receiving) {
-		std::cout << "Receiving new message...\n";
+		//std::cout << "Receiving new message...\n";
 		if (socket.receive(all_data, 320, package_size, sender_ip, sender_port) != sf::Socket::Done) {
 			//throw exception
-			std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " ERROR\n";
+			//std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " ERROR\n";
 		}
 		else if (package_size > 0) {
-			std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " SUCCESS\n";
+			//std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " SUCCESS\n";
 			save_message(all_data, sender_port, sender_ip.toString());
 		}
 		std::this_thread::sleep_for(100ms);

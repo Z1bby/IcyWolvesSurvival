@@ -22,23 +22,26 @@ void Game::join_a_room() {
 	// gett answer from server that you can play;
 	unsigned short port;
 	std::cout << "Server address: \n";
-	serverIP = sf::IpAddress::getLocalAddress().toString();
+	serverIP = "192.168.8.106\n type that address: ";
+	std::cin >> serverIP;
 	std::cout << "Server port: \n";
-	std::cin >> port;
-	port += 54000;
+	port = 54001;
 	connection->bind(port);
 	connection->startListening();
 	char buffer[8] = "join";
-	connection->socket.send(buffer, 3, serverIP, 54000);
+	connection->socket.send(buffer, 8, serverIP, 54000);
 }
 
 void Game::create_a_room() {
+	connection->id = 'A';
+	((Server*)connection)->next_id = 'B';
+	connection->bind(54000);
 	serverIP = sf::IpAddress::getLocalAddress().toString();
 	std::cout << "IP = " << connection->address << '\n'
 		<< "Port = 54000\n";
 	std::cin.get();
 	std::cin.get();
-	board->players[0] = new Player(rand() % board->width, rand() % board->height, 'A', board, true);
+	board->players[0] = new Player(rand() % board->width, rand() % board->height, 'A', board, connection->port, connection->address, true);
 	board->players[0]->port = 54000;
 	board->players[0]->address = connection->address.c_str();
 	board->player_id = 'A';
@@ -61,8 +64,9 @@ void Game::create_a_room() {
 	gameStarted = true;
 }
 
-void Game::add_player(int x, int y, char id, int i) {
-	board->players[i] = new Player(x, y, id, board, true);
+void Game::add_player(int x, int y, char id, unsigned short port, std::string address, int i) {
+	if (i >= 10) return;
+	board->players[i] = new Player(x, y, id, board, port, address, true);
 }
 
 void Game::remove_player(char id) {
@@ -72,21 +76,22 @@ void Game::remove_player(char id) {
 void Game::process_network_data() {
 	// max 10 players
 	for (int i = 0; i < 10; i++) {
-		if (board->all_data[i * 32] == 0)
+		if (connection->all_data[i * 32] == 0)
 			return;
 		if (board->players[i] == nullptr) {
-			if ((unsigned short)board->all_data[i * 32 + 6] == connection->port && 
-				strcmp(&board->all_data[i * 32 + 8], connection->address.c_str()) == 0) {
-				add_player(rand() % board->width, rand() % board->height, board->all_data[i * 32], i);
-				board->player_id = board->all_data[i * 32];
+			if (*((unsigned short*)&connection->all_data[i * 32 + 6]) == connection->port && 
+				strcmp(&connection->all_data[i * 32 + 8], connection->address.c_str()) == 0) {
+				add_player(rand() % board->width, rand() % board->height, connection->all_data[i * 32], connection->port, connection->address, i);
+				board->player_id = connection->all_data[i * 32];
 				board->player_index = i;
-				board->players[board->player_index]->port = *(unsigned short*)&board->all_data[i * 32 + 6];
-				board->players[board->player_index]->address = &board->all_data[i * 32 + 8];
+				board->players[board->player_index]->port = *((unsigned short*)&connection->all_data[i * 32 + 6]);
+				board->players[board->player_index]->address = std::string(&connection->all_data[i * 32 + 8]); // change rhs to char*?
 				gameStarted = true;
 				board->player_count++;
+				connection->socket.send(board->players[board->player_index]->buffer, 32, serverIP, 54000);
 			}
-			else if (board->all_data[i * 32 + 4] == '1') {
-				add_player(board->all_data[i * 32 + 1], board->all_data[i * 32 + 2], board->all_data[i * 32], i);
+			else {
+				add_player(board->all_data[i * 32 + 1], board->all_data[i * 32 + 2], board->all_data[i * 32], *((unsigned short*)&connection->all_data[i * 32 + 6]), &connection->all_data[i * 32 + 8], i);
 				board->player_count++;
 			}
 		}
@@ -112,7 +117,7 @@ void Game::network_game() {
 		process_network_data();
 		board->players[board->player_index]->move();
 		if (time_now - board->last_print_time > board->print_delay) {
-			//board->print();
+			board->print();
 			board->last_print_time = time_now;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
@@ -122,10 +127,8 @@ void Game::network_game() {
 		board->players[board->player_index]->update_player();
 		if (connection->isServer()) {
 			connection->save_message(board->players[board->player_index]->buffer, 0, "");
-			for (int i=1; i<board->player_count; i++)
-				{
-					//connection->socket.send(buffer, 5, p->address, connection->port);
-					connection->socket.send(board->all_data, 5, board->players[i]->address, board->players[i]->port);
+			for (int i=1; i<board->player_count; i++) {
+					connection->socket.send(board->all_data, 32 * 10, board->players[i]->address, board->players[i]->port);
 				}
 		}
 		else {

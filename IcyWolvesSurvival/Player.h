@@ -5,43 +5,36 @@
 
 class Board;
 
+struct pData {
+	int x;
+	int y;
+	int hp;
+	int id;
+	char body;
+	bool connected;
+};
+
 class Player {
 public:
-	char x;
-	char y;
-	char hp;
-	char id;
-
+	pData data;
 	int move_delay;
 	int last_move_time;
-	
-	char* buffer;
-	bool connected;
-	std::string address;
-	unsigned short port;
 
 	enum class Teams { red, blue, unspecified };
 	Teams team;
 	Board* board;
 
-	void update_player();
-
-	Player(char px, char py, char pid, Board* pboard, unsigned short pport, std::string paddress, bool pconnected) {
-		x = px;
-		y = py;
-		id = pid;
-		hp = 100;
+	Player(char px, char py, int pid, Board* pboard, bool pconnected) {
+		data.x = px;
+		data.y = py;
+		data.id = pid;
+		data.hp = 100;
+		data.connected = pconnected;
+		data.body = 'A' + pid;
 		board = pboard;
 		team = Teams::unspecified;
 		move_delay = 150;		// miliseconds
 		last_move_time = 0;
-		buffer = new char[32];
-		connected = pconnected;
-		port = pport;
-		address = paddress;
-	}
-	~Player() {
-		delete[] buffer;
 	}
 	void move();
 };

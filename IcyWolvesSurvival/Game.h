@@ -5,28 +5,33 @@
 
 #include <ctime>
 #include <random>
-#include <mutex>
 
 class Game
 {
 public:
+	Board board;
 	Connection* connection;
-	std::string serverIP;
-	Board* board;
+	int playerID;
+	bool gameStarted; 
 
-	bool gameStarted;
+	Game() : playerID(-1), gameStarted(false), connection(nullptr) {}
 
-	Game() : connection(nullptr), serverIP(""), board(nullptr), gameStarted(false) { }
-	
 	void start();
-	char choose_connection_type();
-	void join_a_room();
-	void create_a_room();
-	void add_player(int x, int y, char id, unsigned short port, std::string address, int i);
-	void remove_player(char id = 0);
-	void add_board();
-	void process_network_data();
-	void network_game();
-	void client_game();
+	void startServer();
+	void startClient();
+	void startClient(int id, unsigned short p, char* a);
+
+	void randomMove();
+	char chooseConnectionType();
+
+	void createRoom();
+	void deleteRoom();
+	void joinRoom();
+	void addPlayer(int x, int y, int id, bool connected = true);
+	void removePlayer(int id);
+	void addBoard();
+
+	void processNetworkData();
+	void networkGame();
 };
 

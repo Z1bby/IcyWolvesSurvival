@@ -10,11 +10,9 @@ void Board::print() {
 		std::cout << '|';
 		for (int x = 0; x < width; x++) {
 			bool playerHere = false;
-			for (Player* p : players) {
-				if (p == nullptr)
-					break;
-				if (p->x == x && p->y == y) {
-					std::cout << p->id;
+			for (std::pair<int, Player*> p : players) {
+				if (p.second->data.x == x && p.second->data.y == y) {
+					std::cout << p.second->data.body;
 					playerHere = true;
 					break;
 				}
@@ -26,8 +24,4 @@ void Board::print() {
 	}
 	for (int i = 0; i < width + 2; i++)
 		std::cout << '=';
-}
-
-void Board::update_players() {
-	//...
 }

@@ -5,30 +5,24 @@
 
 void Player::move() {
 	int time_now = clock();
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) && x > 0 && time_now - last_move_time > move_delay) {
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) && data.x > 0 && time_now - last_move_time > move_delay) {
 		std::cout << "Left\n";
-		x--;
+		data.x--;
 		last_move_time = time_now;
 	}
-	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) && x < board->width - 1 && time_now - last_move_time > move_delay) {
+	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) && data.x < board->width - 1 && time_now - last_move_time > move_delay) {
 		std::cout << "Right\n";
-		x++;
+		data.x++;
 		last_move_time = time_now;
 	}
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) && y > 0 && time_now - last_move_time > move_delay) {
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) && data.y > 0 && time_now - last_move_time > move_delay) {
 		std::cout << "Top\n";
-		y--;
+		data.y--;
 		last_move_time = time_now;
 	}
-	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) && y < board->height - 1 && time_now - last_move_time > move_delay) {
+	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) && data.y < board->height - 1 && time_now - last_move_time > move_delay) {
 		std::cout << "Down\n";
-		y++;
+		data.y++;
 		last_move_time = time_now;
 	}
-}
-
-void Player::update_player() {
-	board->players[board->player_index]->buffer[1] = board->players[board->player_index]->x;
-	board->players[board->player_index]->buffer[2] = board->players[board->player_index]->y;
-	board->players[board->player_index]->buffer[3] = board->players[board->player_index]->hp;
 }

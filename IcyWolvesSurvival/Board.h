@@ -11,27 +11,27 @@ class Board {
 public:
 	int width;
 	int height;
-	Player* players[10];
-	char player_id;
-	int player_index;
-	char* all_data;
+	std::map<int, Player*> players;
 	int player_count;
 
 	int print_delay;
 	int last_print_time;
-	
+
+	Board() {
+		width = 10;
+		height = 10;
+		player_count = 0;
+		print_delay = 50;
+		last_print_time = 0;
+	}
 	Board(int w, int h) {
 		width = w;
 		height = h;
 		player_count = 0;
-		player_id = -1;
-		player_index = -1;
-		all_data = nullptr;
-		for (int i = 0; i < 10; i++)
-			players[i] = nullptr;
 		print_delay = 50;
 		last_print_time = 0;
 	}
+	void addPlayer(int id, Player& p) { players[id] = &p; }
 	void print();
 	void update_players();
 };

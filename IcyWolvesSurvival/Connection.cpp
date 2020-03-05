@@ -3,43 +3,41 @@
 #include <iostream>
 
 void Client::startListening() {
-	// if instead of "this", pass an outside pointer, then error
 	std::cout << "Client start listening\n";
-	keep_receiving = true;
-	receiverThread = std::thread(&Client::start, this);
+	keepReceiving = true;
+	receiverThread = std::thread(&Client::start, this);		// this creates new thread
 }
 
 void Server::startListening() {
-	// if instead of "this", pass an outside pointer, then error
 	std::cout << "Server start listening\n";
-	keep_receiving = true;
-	receiverThread = std::thread(&Server::start, this);
+	keepReceiving = true;
+	receiverThread = std::thread(&Server::start, this);		// this creates new thread
 }
 
 void Client::stopListening() {
-	socket.unbind();				// is it necessary?
-	keep_receiving = false;
-	std::cout << "Waiting for receiver to join\n";
+	socket.unbind();				// also repeated in destructor
+	keepReceiving = false;
+	std::cout << "Waiting for thread to join\n";
 	receiverThread.join();
-	std::cout << "Receiver joined\n";
+	std::cout << "Receiving thread joined\n";
 }
 
 void Server::stopListening() {
-	socket.unbind();				// is it necessary?
-	keep_receiving = false;
+	socket.unbind();				// also repeated in destructor
+	keepReceiving = false;
 	std::cout << "Waiting for receiver to join\n";
 	receiverThread.join();
 	std::cout << "Receiver joined\n";
 }
 
 void Server::start() {
-	std::size_t package_size;
+	std::size_t package_size;	// variables to receive message
 	sf::IpAddress sender_ip;
 	unsigned short sender_port;
-	char buffer[DATA_SEGMENT_SIZE];
-	while (keep_receiving) {
+	char buffer[PLAYER_DATA_SIZE];		// one player real time variables
+	while (keepReceiving) {
 		//std::cout << "Receiving new message...\n";
-		if (socket.receive(buffer, DATA_SEGMENT_SIZE, package_size, sender_ip, sender_port) != sf::Socket::Done) {
+		if (socket.receive(buffer, PLAYER_DATA_SIZE, package_size, sender_ip, sender_port) != sf::Socket::Done) {
 			std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " ERROR\n";
 		}
 		else if (package_size > 0) {
@@ -54,10 +52,9 @@ void Client::start() {
 	std::size_t package_size;
 	sf::IpAddress sender_ip;
 	unsigned short sender_port;
-	while (keep_receiving) {
+	while (keepReceiving) {
 		//std::cout << "Receiving new message...\n";
 		if (socket.receive(allData, ALL_DATA_SIZE, package_size, sender_ip, sender_port) != sf::Socket::Done) {
-			//throw exception
 			std::cout << "Received " << package_size << " data From " << sender_ip << ':' << sender_port << " ERROR\n";
 		}
 		else if (package_size > 0) {
@@ -68,29 +65,31 @@ void Client::start() {
 	}
 }
 
-// store message in a container, send message as soon as container.empty() == false
 void Client::save_message(char* buffer, unsigned short sender_port, const char* sender_ip, int package_size) {
+	// message is already stored in allData[]
 	if (package_size == 4) {
 		connectionID = *(int*)buffer;
 		return;
 	}
-	std::lock_guard<std::mutex> locker(m_mutex);
-	memcpy(allData, buffer, ALL_DATA_SIZE);
+	//std::lock_guard<std::mutex> locker(m_mutex);
+	//memcpy(allData, buffer, ALL_DATA_SIZE);
 }
 void Server::save_message(char* buffer, unsigned short sender_port, const char* sender_ip, int package_size) {
+	// if someone sends join request and there is a room for next player
 	if (buffer[0] == 'j' && occupiedSize < ALL_DATA_SIZE) {
-		int i = occupiedSize / DATA_SEGMENT_SIZE;
-		connections[i].port = sender_port;
-		strcpy_s(connections[i].address, 16, sender_ip);
-		socket.send((char*)&i, sizeof(i), sender_ip, sender_port);
+		int i = occupiedSize / PLAYER_DATA_SIZE;			// calculate index for new player
+		connections[i].port = sender_port;					// set port
+		strcpy_s(connections[i].address, 16, sender_ip);	// and address
+		socket.send((char*)&i, sizeof(i), sender_ip, sender_port);	//send back the calculated index
 		std::lock_guard<std::mutex> locker(m_mutex);
-		reinterpret_cast<pData*>(&allData[occupiedSize])->id = i;
-		occupiedSize += DATA_SEGMENT_SIZE;
+		reinterpret_cast<pData*>(&allData[occupiedSize])->id = i;	// save index to real time variables
+		occupiedSize += PLAYER_DATA_SIZE;					// player takes space
 		return;
 	}
-	else{
+	else {	// assume it's just updated clients buffer
 		std::lock_guard<std::mutex> locker(m_mutex);
-		memcpy(&allData[reinterpret_cast<pData*>(buffer)->id * DATA_SEGMENT_SIZE], buffer, DATA_SEGMENT_SIZE);
+		// allData[sender->ID] = buffer;
+		memcpy(&allData[reinterpret_cast<pData*>(buffer)->id * PLAYER_DATA_SIZE], buffer, PLAYER_DATA_SIZE);
 		return;
 	}
 }

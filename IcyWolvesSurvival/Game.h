@@ -9,29 +9,32 @@
 class Game
 {
 public:
-	Board board;
-	Connection* connection;
-	int playerID;
-	bool gameStarted; 
+	Board board;				// contains players
+	Connection* connection;		// server or client
+	int playerID;				// index of your player in board.players
+	bool gameStarted;			// set to true if server accepts you
 
 	Game() : playerID(-1), gameStarted(false), connection(nullptr) {}
-
-	void start();
+	
+	
+	void start();				// does nothing so far
 	void startServer();
 	void startClient();
 	void startClient(int id, unsigned short p, char* a);
 
-	void randomMove();
-	char chooseConnectionType();
+	void randomMove();			// not implemented
 
-	void createRoom();
-	void deleteRoom();
-	void joinRoom();
+	char chooseConnectionType();	// set your connection to Server or Client
+
+	void createRoom();			// only if you are server
+	void deleteRoom();			// not implemented
+	void joinRoom();			// only if you are client
+
 	void addPlayer(int x, int y, int id, bool connected = true);
-	void removePlayer(int id);
-	void addBoard();
+	void removePlayer(int id);	// if someone left the room
+	void addBoard();			// not implemented
 
-	void processNetworkData();
-	void networkGame();
+	void updateRealTimeVariables();	// update real time variables
+	void networkGame();				// game loop
 };
 
